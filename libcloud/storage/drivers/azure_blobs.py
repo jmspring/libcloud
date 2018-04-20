@@ -791,11 +791,23 @@ class AzureBlobsStorageDriver(StorageDriver):
         if ex_blob_type is None:
             ex_blob_type = self.ex_blob_type
 
+        """
+        Azure requires that for page blobs that a maximum size that the page
+        can grow to.  For block blobs, it is required that the Content-Length
+        header be set.  The size of the block blob will be the total size of
+        the stream minus the current position, so in this case
+        ex_page_blob_size should be 0 (and will be checked in
+        self._check_values.
+        """
         self._check_values(ex_blob_type, ex_page_blob_size)
-
+        if ex_blob_type == "BlockBlob":
+            blob_size = os.fstat(iterator.fileno()).st_size
+        else:
+            blob_size = ex_page_blob_size
+        
         return self._put_object(container=container,
                                 object_name=object_name,
-                                object_size=ex_page_blob_size,
+                                object_size=blob_size,
                                 extra=extra, verify_hash=verify_hash,
                                 blob_type=ex_blob_type,
                                 use_lease=ex_use_lease,
